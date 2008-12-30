@@ -1,0 +1,29 @@
+---
+abstract: 'A Perl module for using Google Spreadsheets API.'
+author:
+  - 'Nobuo Danjou <nobuo.danjou@gmail.com>'
+build_requires:
+  Test::More: 0
+distribution_type: module
+generated_by: 'Module::Install version 0.77'
+license: perl
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: Net-Google-Spreadsheets
+no_index:
+  directory:
+    - inc
+    - t
+requires:
+  Carp: 0
+  LWP::UserAgent: 0
+  Moose: 0
+  Net::Google::AuthSub: 0
+  Path::Class: 0
+  URI: 0
+  XML::Atom: 0
+  perl: 5.8.0
+resources:
+  license: http://dev.perl.org/licenses/
+version: 0.01
