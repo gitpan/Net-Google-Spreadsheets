@@ -9,7 +9,7 @@ use Net::Google::AuthSub;
 use Net::Google::Spreadsheets::UserAgent;
 use Net::Google::Spreadsheets::Spreadsheet;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 BEGIN {
     $XML::Atom::DefaultVersion = 1;
@@ -37,26 +37,27 @@ has password => ( isa => 'Str', is => 'ro', required => 1 );
 has ua => (
     isa => 'Net::Google::Spreadsheets::UserAgent',
     is => 'ro',
-    required => 1,
-    lazy => 1,
-    default => sub {
-        my ($self) = @_;
-        my $authsub = Net::Google::AuthSub->new(
-            service => 'wise',
-            source => $self->source,
-        );
-        my $res = $authsub->login(
-            $self->username,
-            $self->password,
-        );
-        $res->is_success or return;
-        Net::Google::Spreadsheets::UserAgent->new(
-            source => $self->source,
-            auth => $res->auth,
-        );
-    },
     handles => [qw(request feed entry post put)],
 );
+
+sub BUILD {
+    my $self = shift;
+    my $authsub = Net::Google::AuthSub->new(
+        service => 'wise',
+        source => $self->source,
+    );
+    my $res = $authsub->login(
+        $self->username,
+        $self->password,
+    );
+    unless ($res && $res->is_success) {
+        croak 'Net::Google::AuthSub login failed';
+    } 
+    $self->{ua} = Net::Google::Spreadsheets::UserAgent->new(
+        source => $self->source,
+        auth => $res->auth,
+    );
+}
 
 sub spreadsheets {
     my ($self, $args) = @_;
@@ -68,7 +69,7 @@ sub spreadsheets {
             service => $self,
         );
     } else {
-        my $cond = $args->{title} ? 
+        my $cond = $args->{title} ?
         {
             title => $args->{title},
             'title-exact' => 'true'
@@ -83,7 +84,7 @@ sub spreadsheets {
             ($args->{title} && $_->title eq $args->{title})
         } map {
             Net::Google::Spreadsheets::Spreadsheet->new(
-                atom => $_, 
+                atom => $_,
                 service => $self
             )
         } $feed->entries;
@@ -107,10 +108,10 @@ Net::Google::Spreadsheets - A Perl module for using Google Spreadsheets API.
   use Net::Google::Spreadsheets;
 
   my $service = Net::Google::Spreadsheets->new(
-    username => 'myname@gmail.com', 
+    username => 'mygoogleaccount@example.com',
     password => 'mypassword'
   );
-  
+
   my @spreadsheets = $service->spreadsheets();
 
   # find a spreadsheet by key
@@ -193,7 +194,7 @@ Creates Google Spreadsheet API client. It takes arguments below:
 
 =item username
 
-Username for google. This should be full email address format like 'username@gmail.com'.
+Username for Google. This should be full email address format like 'mygoogleaccount@example.com'.
 
 =item password
 

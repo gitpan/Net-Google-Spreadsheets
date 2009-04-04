@@ -38,7 +38,7 @@ sub worksheets {
 
 sub add_worksheet {
     my ($self, $args) = @_;
-    my $entry = Net::Google::Spreadsheets::Worksheet->new($args)->entry;
+    my $entry = Net::Google::Spreadsheets::Worksheet->new($args || {})->entry;
     my $atom = $self->service->post($self->content, $entry);
     $self->sync;
     return Net::Google::Spreadsheets::Worksheet->new(
@@ -59,10 +59,10 @@ Net::Google::Spreadsheets::Spreadsheet - Representation of spreadsheet.
   use Net::Google::Spreadsheets;
 
   my $service = Net::Google::Spreadsheets->new(
-    username => 'myname@gmail.com', 
+    username => 'mygoogleaccount@example.com',
     password => 'mypassword'
   );
-  
+
   my @spreadsheets = $service->spreadsheets();
 
   # find a spreadsheet by key
