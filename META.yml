@@ -20,7 +20,7 @@ requires:
   Carp: 0
   Crypt::SSLeay: 0
   LWP::UserAgent: 0
-  Moose: 0
+  Moose: 0.34
   Net::Google::AuthSub: 0
   Path::Class: 0
   URI: 0
@@ -28,4 +28,4 @@ requires:
   perl: 5.8.0
 resources:
   license: http://dev.perl.org/licenses/
-version: 0.02
+version: 0.03
