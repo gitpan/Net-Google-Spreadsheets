@@ -1,4 +1,5 @@
 Changes
+inc/Digest/MD5.pm
 inc/Module/Install.pm
 inc/Module/Install/AuthorTests.pm
 inc/Module/Install/Base.pm
@@ -7,14 +8,8 @@ inc/Module/Install/Fetch.pm
 inc/Module/Install/Include.pm
 inc/Module/Install/Makefile.pm
 inc/Module/Install/Metadata.pm
-inc/Module/Install/TestBase.pm
 inc/Module/Install/Win32.pm
 inc/Module/Install/WriteAll.pm
-inc/Spiffy.pm
-inc/Test/Base.pm
-inc/Test/Base/Filter.pm
-inc/Test/Builder.pm
-inc/Test/Builder/Module.pm
 inc/Test/Exception.pm
 inc/Test/More.pm
 lib/Net/Google/Spreadsheets.pm
@@ -31,11 +26,11 @@ README
 t/00_compile.t
 t/01_instanciate.t
 t/02_spreadsheets.t
-t/03_spreadsheet.t
-t/04_worksheet.t
-t/05_cell.t
-t/06_rows.t
-t/07_error.t
+t/03_worksheet.t
+t/04_cell.t
+t/05_rows.t
+t/06_error.t
+t/Util.pm
 xt/01_podspell.t
 xt/02_perlcritic.t
 xt/03_pod.t

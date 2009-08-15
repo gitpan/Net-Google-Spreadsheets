@@ -1,29 +1,8 @@
-use strict;
+use t::Util title => 'test for Net::Google::Spreadsheets';
 use Test::More;
 
-use Net::Google::Spreadsheets;
+ok my $ws = spreadsheet->add_worksheet, 'add worksheet';
 
-my $ws;
-BEGIN {
-    plan skip_all => 'set TEST_NET_GOOGLE_SPREADSHEETS to run this test'
-        unless $ENV{TEST_NET_GOOGLE_SPREADSHEETS};
-    eval "use Config::Pit";
-    plan skip_all => 'This Test needs Config::Pit.' if $@;
-    my $config = pit_get('google.com', require => {
-            'username' => 'your username',
-            'password' => 'your password',
-        }
-    );
-    my $service = Net::Google::Spreadsheets->new(
-        username => $config->{username},
-        password => $config->{password},
-    );
-    my $title = 'test for Net::Google::Spreadsheets';
-    my $ss = $service->spreadsheet({title => $title});
-    plan skip_all => "test spreadsheet '$title' doesn't exist." unless $ss;
-    plan tests => 25;
-    $ws = $ss->add_worksheet;
-}
 {
     my $value = 'first cell value';
     my $cell = $ws->cell({col => 1, row => 1});
@@ -61,8 +40,6 @@ BEGIN {
     {
         my @cells = $ws->cells(
             {
-                'min-row' => 1,
-                'max-row' => 2,
                 'min-col' => 1,
                 'max-col' => 2,
             }
@@ -96,6 +73,7 @@ BEGIN {
     my $result = $ws->cell({ row => 1, col => 3});
     is $result->content, 300;
 }
-END {
-#    $ws->delete;
-}
+
+ok $ws->delete, 'delete worksheet';
+
+done_testing;

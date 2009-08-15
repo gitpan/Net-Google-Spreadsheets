@@ -14,8 +14,8 @@ requires 'Path::Class';
 tests 't/*.t';
 author_tests 'xt';
 
-build_requires 'Test::More';
+build_requires 'Test::More' => 0.88;
 build_requires 'Test::Exception';
-use_test_base;
+build_requires 'Digest::MD5';
 auto_include;
 WriteAll;
