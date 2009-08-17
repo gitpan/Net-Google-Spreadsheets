@@ -1,7 +1,14 @@
 package Net::Google::Spreadsheets::Cell;
 use Moose;
+use namespace::clean -except => 'meta';
+use XML::Atom::Util qw(first);
 
 extends 'Net::Google::Spreadsheets::Base';
+
+has content => (
+    isa => 'Str',
+    is => 'ro',
+);
 
 has row => (
     isa => 'Int',
@@ -19,16 +26,16 @@ has input_value => (
     trigger => sub {$_[0]->update},
 );
 
-after _update_atom => sub {
+after from_atom => sub {
     my ($self) = @_;
-    my ($elem) = $self->elem->getElementsByTagNameNS($self->gsns->{uri}, 'cell');
+    my $elem = first( $self->elem, $self->gsns->{uri}, 'cell');
     $self->{row} = $elem->getAttribute('row');
     $self->{col} = $elem->getAttribute('col');
     $self->{input_value} = $elem->getAttribute('inputValue');
     $self->{content} = $elem->textContent || '';
 };
 
-around entry => sub {
+around to_atom => sub {
     my ($next, $self) = @_;
     my $entry = $next->($self);
     $entry->set($self->gsns, 'cell', '',
@@ -46,6 +53,8 @@ around entry => sub {
     $entry->id($self->id);
     return $entry;
 };
+
+__PACKAGE__->meta->make_immutable;
 
 1;
 __END__
@@ -97,9 +106,9 @@ Read only attribute. You can get the result of formula.
 
 =head1 SEE ALSO
 
-L<http://code.google.com/intl/en/apis/spreadsheets/docs/2.0/developers_guide_protocol.html>
+L<http://code.google.com/intl/en/apis/spreadsheets/docs/3.0/developers_guide_protocol.html>
 
-L<http://code.google.com/intl/en/apis/spreadsheets/docs/2.0/reference.html>
+L<http://code.google.com/intl/en/apis/spreadsheets/docs/3.0/reference.html>
 
 L<Net::Google::AuthSub>
 

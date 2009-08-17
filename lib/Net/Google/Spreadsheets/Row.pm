@@ -1,25 +1,19 @@
 package Net::Google::Spreadsheets::Row;
 use Moose;
+use namespace::clean -except => 'meta';
+use XML::Atom::Util qw(nodelist);
 
 extends 'Net::Google::Spreadsheets::Base';
+with 'Net::Google::Spreadsheets::Role::HasContent';
 
-has +content => (
-    isa => 'HashRef',
-    is => 'rw',
-    default => sub { +{} },
-    trigger => sub {
-        $_[0]->update
-    },
-);
-
-after _update_atom => sub {
+after from_atom => sub {
     my ($self) = @_;
-    for my $node ($self->elem->getElementsByTagNameNS($self->gsxns->{uri}, '*')) {
+    for my $node (nodelist($self->elem, $self->gsxns->{uri}, '*')) {
         $self->{content}->{$node->localname} = $node->textContent;
     }
 };
 
-around entry => sub {
+around to_atom => sub {
     my ($next, $self) = @_;
     my $entry = $next->($self);
     while (my ($key, $value) = each %{$self->{content}}) {
@@ -27,6 +21,8 @@ around entry => sub {
     }
     return $entry;
 };
+
+__PACKAGE__->meta->make_immutable;
 
 sub param {
     my ($self, $arg) = @_;
@@ -97,7 +93,7 @@ Net::Google::Spreadsheets::Row - A representation class for Google Spreadsheet r
   my $newval = $row->param({address => 'elsewhere'});
   # updates address (and keeps other fields) and returns new row value (with all fields)
 
-  my $hashref = $row->param;
+  my $hashref2 = $row->param;
   # same as $row->content;
 
 =head1 METHODS
@@ -106,6 +102,47 @@ Net::Google::Spreadsheets::Row - A representation class for Google Spreadsheet r
 
 sets and gets content value.
 
+=head1 CAVEATS
+
+Space characters in hash key of rows will be removed when you access rows. See below.
+
+  my $ws = Net::Google::Spreadsheets->new(
+    username => 'me@gmail.com', 
+    password => 'foobar'
+  )->spreadsheet({titile => 'sample'})->worksheet(1);
+  $ws->batchupdate_cell(
+    {col => 1,row => 1, input_value => 'name'},
+    {col => 2,row => 1, input_value => 'mail address'},
+  ); 
+  $ws->add_row(
+    {
+        name => 'my name',
+        mailaddress => 'me@gmail.com',
+  #      above passes, below fails.
+  #      'mail address' => 'me@gmail.com',
+    }
+  );
+
+Instead, Net::Google::Spreadsheets::Table and Net::Google::Spreadsheets::Record allows 
+space characters in column name. 
+
+  my $s = Net::Google::Spreadsheets->new(
+    username => 'me@gmail.com', 
+    password => 'foobar'
+  )->spreadsheet({titile => 'sample'});
+
+  my $t = $s->add_table(
+    {
+        worksheet => $s->worksheet(1),
+        columns => ['name', 'mail address'],
+    }
+  );
+  $t->add_record(
+    {
+        name => 'my name',
+        'mail address' => 'me@gmail.com',
+    }
+  );
 
 =head1 ATTRIBUTES
 
@@ -115,9 +152,9 @@ Rewritable attribute. You can get and set the value.
 
 =head1 SEE ALSO
 
-L<http://code.google.com/intl/en/apis/spreadsheets/docs/2.0/developers_guide_protocol.html>
+L<http://code.google.com/intl/en/apis/spreadsheets/docs/3.0/developers_guide_protocol.html>
 
-L<http://code.google.com/intl/en/apis/spreadsheets/docs/2.0/reference.html>
+L<http://code.google.com/intl/en/apis/spreadsheets/docs/3.0/reference.html>
 
 L<Net::Google::AuthSub>
 

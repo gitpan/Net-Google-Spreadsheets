@@ -1,14 +1,17 @@
 package Net::Google::Spreadsheets::Base;
 use Moose;
+use namespace::clean -except => 'meta';
 use Carp;
 
 has service => (
     isa => 'Net::Google::Spreadsheets',
     is => 'ro',
     required => 1,
-    lazy => 1,
-    default => sub { shift->container->service },
+    lazy_build => 1,
+    weak_ref => 1,
 );
+
+sub _build_service { shift->container->service };
 
 my %ns = (
     gd => 'http://schemas.google.com/g/2005',
@@ -18,11 +21,10 @@ my %ns = (
 );
 
 while (my ($prefix, $uri) = each %ns) {
-    has $prefix.'ns' => (
-        isa => 'XML::Atom::Namespace',
-        is => 'ro',
-        required => 1,
-        default => sub {XML::Atom::Namespace->new($prefix, $uri)},
+    __PACKAGE__->meta->add_method(
+        "${prefix}ns" => sub {
+            XML::Atom::Namespace->new($prefix, $uri)
+        }
     );
 }
 
@@ -35,11 +37,6 @@ for (values %rel2label) {
     has $_ => (isa => 'Str', is => 'ro');
 }
 
-has accessor => (
-    isa => 'Str',
-    is => 'ro',
-);
-
 has atom => (
     isa => 'XML::Atom::Entry',
     is => 'rw',
@@ -47,17 +44,12 @@ has atom => (
         my ($self, $arg) = @_;
         my $id = $self->atom->get($self->ns, 'id');
         croak "can't set different id!" if $self->id && $self->id ne $id;
-        $self->_update_atom;
+        $self->from_atom;
     },
     handles => ['ns', 'elem', 'author'],
 );
 
 has id => (
-    isa => 'Str',
-    is => 'ro',
-);
-
-has content => (
     isa => 'Str',
     is => 'ro',
 );
@@ -79,7 +71,9 @@ has container => (
     is => 'ro',
 );
 
-sub _update_atom {
+__PACKAGE__->meta->make_immutable;
+
+sub from_atom {
     my ($self) = @_;
     $self->{title} = $self->atom->title;
     $self->{id} = $self->atom->get($self->ns, 'id');
@@ -90,14 +84,7 @@ sub _update_atom {
     }
 }
 
-sub list_contents {
-    my ($self, $class, $cond) = @_;
-    $self->content or return;
-    my $feed = $self->service->feed($self->content, $cond);
-    return map {$class->new(container => $self, atom => $_)} $feed->entries;
-}
-
-sub entry {
+sub to_atom {
     my ($self) = @_;
     my $entry = XML::Atom::Entry->new;
     $entry->title($self->title) if $self->title;
@@ -116,7 +103,7 @@ sub update {
     my $atom = $self->service->put(
         {
             self => $self,
-            entry => $self->entry,
+            entry => $self->to_atom,
         }
     );
     $self->container->sync;
@@ -145,9 +132,9 @@ Net::Google::Spreadsheets::Base - Base class of Net::Google::Spreadsheets::*.
 
 =head1 SEE ALSO
 
-L<http://code.google.com/intl/en/apis/spreadsheets/docs/2.0/developers_guide_protocol.html>
+L<http://code.google.com/intl/en/apis/spreadsheets/docs/3.0/developers_guide_protocol.html>
 
-L<http://code.google.com/intl/en/apis/spreadsheets/docs/2.0/reference.html>
+L<http://code.google.com/intl/en/apis/spreadsheets/docs/3.0/reference.html>
 
 L<Net::Google::AuthSub>
 

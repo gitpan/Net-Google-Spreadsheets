@@ -1,9 +1,57 @@
 package Net::Google::Spreadsheets::Worksheet;
 use Moose;
-use Net::Google::Spreadsheets::Row;
-use Net::Google::Spreadsheets::Cell;
+use Carp;
+use namespace::clean -except => 'meta';
 
 extends 'Net::Google::Spreadsheets::Base';
+
+use Net::Google::Spreadsheets::Cell;
+
+has row_feed => (
+    traits => ['Net::Google::Spreadsheets::Traits::Feed'],
+    is => 'ro',
+    isa => 'Str',
+    entry_class => 'Net::Google::Spreadsheets::Row',
+    entry_arg_builder => sub {
+        my ($self, $args) = @_;
+        return {content => $args};
+    },
+    from_atom => sub {
+        my $self = shift;
+        $self->{row_feed} = $self->atom->content->elem->getAttribute('src');
+    },
+);
+
+has cellsfeed => (
+    traits => ['Net::Google::Spreadsheets::Traits::Feed'],
+    is => 'ro',
+    isa => 'Str',
+    entry_class => 'Net::Google::Spreadsheets::Cell',
+    entry_arg_builder => sub {
+        my ($self, $args) = @_;
+        croak 'you can\'t call add_cell!';
+    },
+    query_arg_builder => sub {
+        my ($self, $args) = @_;
+        if (my $col = delete $args->{col}) {
+            $args->{'max-col'} = $col;
+            $args->{'min-col'} = $col;
+            $args->{'return-empty'} = 'true';
+        }
+        if (my $row = delete $args->{row}) {
+            $args->{'max-row'} = $row;
+            $args->{'min-row'} = $row;
+            $args->{'return-empty'} = 'true';
+        }
+        return $args;
+    },
+    from_atom => sub {
+        my ($self) = @_;
+        ($self->{cellsfeed}) = map {$_->href} grep {
+            $_->rel eq 'http://schemas.google.com/spreadsheets/2006#cellsfeed'
+        } $self->atom->link;
+    }
+);
 
 has row_count => (
     isa => 'Int',
@@ -19,12 +67,7 @@ has col_count => (
     trigger => sub {$_[0]->update}
 );
 
-has cellsfeed => (
-    isa => 'Str',
-    is => 'ro',
-);
-
-around entry => sub {
+around to_atom => sub {
     my ($next, $self) = @_;
     my $entry = $next->($self);
     $entry->set($self->gsns, 'rowCount', $self->row_count);
@@ -32,41 +75,13 @@ around entry => sub {
     return $entry;
 };
 
-after _update_atom => sub {
+after from_atom => sub {
     my ($self) = @_;
-    $self->{content} = $self->atom->content->elem->getAttribute('src');
-    ($self->{cellsfeed}) = map {$_->href} grep {
-        $_->rel eq 'http://schemas.google.com/spreadsheets/2006#cellsfeed'
-    } $self->atom->link;
     $self->{row_count} = $self->atom->get($self->gsns, 'rowCount');
     $self->{col_count} = $self->atom->get($self->gsns, 'colCount');
 };
 
-sub rows {
-    my ($self, $cond) = @_;
-    return $self->list_contents('Net::Google::Spreadsheets::Row', $cond);
-}
-
-sub row {
-    my ($self, $cond) = @_;
-    return ($self->rows($cond))[0];
-}
-
-sub cells {
-    my ($self, $cond) = @_;
-    my $feed = $self->service->feed($self->cellsfeed, $cond);
-    return map {Net::Google::Spreadsheets::Cell->new(container => $self, atom => $_)} $feed->entries;
-}
-
-sub cell {
-    my ($self, $args) = @_;
-    $self->cellsfeed or return;
-    my $url = sprintf("%s/R%sC%s", $self->cellsfeed, $args->{row}, $args->{col});
-    return Net::Google::Spreadsheets::Cell->new(
-        container => $self,
-        atom => $self->service->entry($url),
-    );
-}
+__PACKAGE__->meta->make_immutable;
 
 sub batchupdate_cell {
     my ($self, @args) = @_;
@@ -74,7 +89,7 @@ sub batchupdate_cell {
     for ( @args ) {
         my $id = sprintf("%s/R%sC%s",$self->cellsfeed, $_->{row}, $_->{col});
         $_->{id} = $_->{editurl} = $id;
-        my $entry = Net::Google::Spreadsheets::Cell->new($_)->entry;
+        my $entry = Net::Google::Spreadsheets::Cell->new($_)->to_atom;
         $entry->set($self->batchns, operation => '', {type => 'update'});
         $entry->set($self->batchns, id => $id);
         $feed->add_entry($entry);
@@ -87,22 +102,11 @@ sub batchupdate_cell {
             container => $self,
         )
     } grep {
-        my ($node) = $_->elem->getElementsByTagNameNS($self->batchns->{uri}, 'status');
+        my $node = XML::Atom::Util::first(
+            $_->elem, $self->batchns->{uri}, 'status'
+        );
         $node->getAttribute('code') == 200;
     } $res_feed->entries;
-}
-
-sub add_row {
-    my ($self, $args) = @_;
-    my $entry = Net::Google::Spreadsheets::Row->new(
-        content => $args,
-    )->entry;
-    my $atom = $self->service->post($self->content, $entry);
-    $self->sync;
-    return Net::Google::Spreadsheets::Row->new(
-        container => $self,
-        atom => $atom,
-    );
 }
 
 1;
@@ -179,11 +183,25 @@ Set 'true' or 'false'. The default is 'false'.
 
 =back
 
-See L<http://code.google.com/intl/en/apis/spreadsheets/docs/2.0/reference.html#ListParameters> for details.
+See L<http://code.google.com/intl/en/apis/spreadsheets/docs/3.0/reference.html#ListParameters> for details.
 
 =head2 row(\%condition)
 
-Returns first item of spreadsheets(\%condition) if available.
+Returns first item of rows(\%condition) if available.
+
+=head2 add_row(\%contents)
+
+Creates new row and returns a Net::Google::Spreadsheets::Row object representing it. Arguments are
+contents of a row as a hashref.
+
+  my $row = $ws->add_row(
+    {
+        name => 'Nobuo Danjou',
+        nick => 'lopnor',
+        mail => 'nobuo.danjou@gmail.com',
+        age  => '33',
+    }
+  );
 
 =head2 cells(\%args)
 
@@ -205,7 +223,7 @@ Returns a list of Net::Google::Spreadsheets::Cell objects. Acceptable arguments 
 
 =back
 
-See L<http://code.google.com/intl/en/apis/spreadsheets/docs/2.0/reference.html#CellParameters> for details.
+See L<http://code.google.com/intl/en/apis/spreadsheets/docs/3.0/reference.html#CellParameters> for details.
 
 =head2 cell(\%args)
 
@@ -235,9 +253,9 @@ update multiple cells with a batch request. Pass a list of hash references conta
 
 =head1 SEE ALSO
 
-L<http://code.google.com/intl/en/apis/spreadsheets/docs/2.0/developers_guide_protocol.html>
+L<http://code.google.com/intl/en/apis/spreadsheets/docs/3.0/developers_guide_protocol.html>
 
-L<http://code.google.com/intl/en/apis/spreadsheets/docs/2.0/reference.html>
+L<http://code.google.com/intl/en/apis/spreadsheets/docs/3.0/reference.html>
 
 L<Net::Google::AuthSub>
 

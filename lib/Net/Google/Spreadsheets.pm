@@ -1,5 +1,6 @@
 package Net::Google::Spreadsheets;
 use Moose;
+use namespace::clean -except => 'meta';
 use 5.008001;
 
 extends 'Net::Google::Spreadsheets::Base';
@@ -7,23 +8,22 @@ extends 'Net::Google::Spreadsheets::Base';
 use Carp;
 use Net::Google::AuthSub;
 use Net::Google::Spreadsheets::UserAgent;
-use Net::Google::Spreadsheets::Spreadsheet;
 
-our $VERSION = '0.05';
+our $VERSION = '0.06_01';
 
 BEGIN {
     $XML::Atom::DefaultVersion = 1;
 }
 
-has +contents => (
+has spreadsheet_feed => (
+    traits => ['Net::Google::Spreadsheets::Traits::Feed'],
     is => 'ro',
-    default => 'http://spreadsheets.google.com/feeds/spreadsheets/private/full'
+    isa => 'Str',
+    default => 'http://spreadsheets.google.com/feeds/spreadsheets/private/full',
+    entry_class => 'Net::Google::Spreadsheets::Spreadsheet',
 );
 
-has +service => (
-    is => 'ro',
-    default => sub {return $_[0]},
-);
+sub _build_service {return $_[0]}
 
 has source => (
     isa => 'Str',
@@ -39,9 +39,11 @@ has ua => (
     isa => 'Net::Google::Spreadsheets::UserAgent',
     is => 'ro',
     handles => [qw(request feed entry post put)],
+    required => 1,
+    lazy_build => 1,
 );
 
-sub BUILD {
+sub _build_ua {
     my $self = shift;
     my $authsub = Net::Google::AuthSub->new(
         service => 'wise',
@@ -54,47 +56,17 @@ sub BUILD {
     unless ($res && $res->is_success) {
         croak 'Net::Google::AuthSub login failed';
     } 
-    $self->{ua} = Net::Google::Spreadsheets::UserAgent->new(
+    return Net::Google::Spreadsheets::UserAgent->new(
         source => $self->source,
         auth => $res->auth,
     );
 }
 
-sub spreadsheets {
-    my ($self, $args) = @_;
-    if ($args->{key}) {
-        my $atom = eval {$self->entry($self->contents.'/'.$args->{key})};
-        $atom or return;
-        return Net::Google::Spreadsheets::Spreadsheet->new(
-            atom => $atom,
-            service => $self,
-        );
-    } else {
-        my $cond = $args->{title} ?
-        {
-            title => $args->{title},
-            'title-exact' => 'true'
-        } : {};
-        my $feed = $self->feed(
-            $self->contents,
-            $cond,
-        );
-        return grep {
-            (!%$args && 1)
-            ||
-            ($args->{title} && $_->title eq $args->{title})
-        } map {
-            Net::Google::Spreadsheets::Spreadsheet->new(
-                atom => $_,
-                service => $self
-            )
-        } $feed->entries;
-    }
-}
+__PACKAGE__->meta->make_immutable;
 
-sub spreadsheet {
-    my ($self, $args) = @_;
-    return ($self->spreadsheets($args))[0];
+sub BUILD {
+    my ($self) = @_;
+    $self->ua; #check if login ok?
 }
 
 1;
@@ -187,6 +159,43 @@ Net::Google::Spreadsheets - A Perl module for using Google Spreadsheets API.
     }
   );
 
+  # delete the row
+  $row->delete;
+
+  # delete the worksheet
+  $worksheet->delete;
+
+  # create a table
+  my $table = $spreadsheet->add_table(
+    {
+        worksheet => $new_worksheet,
+        columns => ['name', 'nick', 'mail address', 'age'],
+    }
+  );
+
+  # add a record
+  my $record = $table->add_record(
+    {
+        name => 'Nobuo Danjou',
+        nick => 'lopnor',
+        'mail address' => 'nobuo.danjou@gmail.com',
+        age  => '33',
+    }
+  );
+
+  # find a record
+  my $found = $table->record(
+    {
+        sq => '"mail address" = "nobuo.danjou@gmail.com"'
+    }
+  );
+
+  # delete it
+  $found->delete;
+
+  # delete table
+  $table->delete;
+
 =head1 DESCRIPTION
 
 Net::Google::Spreadsheets is a Perl module for using Google Spreadsheets API.
@@ -238,15 +247,53 @@ http://spreadsheets.google.com/ccc?key=key
 
 Returns first item of spreadsheets(\%condition) if available.
 
+=head1 TESTING
+
+To test this module, you have to prepare as below.
+
+=over 4
+
+=item create a spreadsheet by hand
+
+Go to L<http://docs.google.com> and create a spreadsheet.
+
+=item set SPREADSHEET_TITLE environment variable
+
+  export SPREADSHEET_TITLE='my test spreadsheet'
+
+or so.
+
+=item set username and password for google.com via Config::Pit
+
+install Config::Pit and type 
+
+  ppit set google.com
+
+then some editor comes up and type your username and password like
+
+  ---
+  username: myname@gmail.com
+  password: foobarbaz
+
+=item run tests
+
+as always,
+
+  perl Makefile.PL
+  make
+  make test
+
+=back
+
 =head1 AUTHOR
 
 Nobuo Danjou E<lt>nobuo.danjou@gmail.comE<gt>
 
 =head1 SEE ALSO
 
-L<http://code.google.com/intl/en/apis/spreadsheets/docs/2.0/developers_guide_protocol.html>
+L<http://code.google.com/intl/en/apis/spreadsheets/docs/3.0/developers_guide_protocol.html>
 
-L<http://code.google.com/intl/en/apis/spreadsheets/docs/2.0/reference.html>
+L<http://code.google.com/intl/en/apis/spreadsheets/docs/3.0/reference.html>
 
 L<Net::Google::AuthSub>
 
@@ -257,6 +304,10 @@ L<Net::Google::Spreadsheets::Worksheet>
 L<Net::Google::Spreadsheets::Cell>
 
 L<Net::Google::Spreadsheets::Row>
+
+L<Net::Google::Spreadsheets::Table>
+
+L<Net::Google::Spreadsheets::Record>
 
 =head1 LICENSE
 
