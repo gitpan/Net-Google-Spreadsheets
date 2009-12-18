@@ -1,27 +1,67 @@
 package Net::Google::Spreadsheets;
-use Moose;
-use namespace::clean -except => 'meta';
+use Any::Moose;
+use Net::Google::DataAPI;
+use namespace::autoclean;
 use 5.008001;
+use Net::Google::AuthSub;
+use Net::Google::DataAPI::Auth::AuthSub;
 
-with 
-    'Net::Google::Spreadsheets::Role::Base',
-    'Net::Google::Spreadsheets::Role::Service';
+our $VERSION = '0.07';
 
-our $VERSION = '0.06';
-
-has spreadsheet_feed => (
-    traits => ['Net::Google::Spreadsheets::Traits::Feed'],
-    is => 'ro',
-    isa => 'Str',
-    default => 'http://spreadsheets.google.com/feeds/spreadsheets/private/full',
-    entry_class => 'Net::Google::Spreadsheets::Spreadsheet',
+with 'Net::Google::DataAPI::Role::Service';
+has '+gdata_version' => (default => '3.0');
+has '+namespaces' => (
+    default => sub {
+        {
+            gs => 'http://schemas.google.com/spreadsheets/2006',
+            gsx => 'http://schemas.google.com/spreadsheets/2006/extended',
+            batch => 'http://schemas.google.com/gdata/batch',
+        }
+    },
 );
 
+has username => (is => 'ro', isa => 'Str');
+has password => (is => 'ro', isa => 'Str');
+has account_type => (is => 'ro', isa => 'Str', required => 1, default => 'HOSTED_OR_GOOGLE');
+has source => (is => 'ro', isa => 'Str', required => 1, default => __PACKAGE__ . '-' . $VERSION);
+
+sub _build_auth {
+    my ($self) = @_;
+    my $authsub = Net::Google::AuthSub->new(
+        source => $self->source,
+        service => 'wise',
+        account_type => $self->account_type,
+    );
+    my $res = $authsub->login( $self->username, $self->password );
+    unless ($res && $res->is_success) {
+        die 'Net::Google::AuthSub login failed';
+    }
+    return Net::Google::DataAPI::Auth::AuthSub->new(
+        authsub => $authsub,
+    );
+}
+
+feedurl spreadsheet => (
+    default => 'http://spreadsheets.google.com/feeds/spreadsheets/private/full',
+    entry_class => 'Net::Google::Spreadsheets::Spreadsheet',
+    can_add => 0,
+);
+
+around spreadsheets => sub {
+    my ($next, $self, $args) = @_;
+    my @result = $next->($self, $args);
+    if (my $key = $args->{key}) {
+        @result = grep {$_->key eq $key} @result;
+    }
+    return @result;
+};
+
+sub BUILD {
+    my $self = shift;
+    $self->auth;
+}
+
 __PACKAGE__->meta->make_immutable;
-
-sub _build_service {return $_[0]}
-
-sub _build_source { return __PACKAGE__. '-' . $VERSION }
 
 1;
 __END__
@@ -201,6 +241,39 @@ http://spreadsheets.google.com/ccc?key=key
 
 Returns first item of spreadsheets(\%condition) if available.
 
+=head1 AUTHORIZATIONS
+
+you can optionally pass auth object argument when initializing
+Net::Google::Spreadsheets instance.
+
+If you want to use AuthSub mechanism, make Net::Google::DataAPI::Auth::AuthSub
+object and path it to the constructor:
+
+  my $authsub = Net::Google::AuthSub->new;
+  $authsub->auth(undef, $session_token);
+  my $auth = Net::Google::DataAPI::Auth::AuthSub->new( 
+    authsub => $authsub
+  );
+
+  my $service = Net::Google::Spreadsheet->new(
+    auth => $auth
+  );
+
+In OAuth case, like this:
+
+  my $oauth = Net::Google::DataAPI::Auth::OAuth->new(
+    consumer_key => 'consumer.example.com',
+    consumer_secret => 'mys3cr3t',
+    callback => 'http://consumer.example.com/callback',
+  );
+  $oauth->get_request_token;
+  my $url = $oauth->get_authorize_token_url;
+  # show the url to the user and get the $verifier value
+  $oauth->get_access_token({verifier => $verifier});
+  my $service = Net::Google::Spreadsheet->new(
+    auth => $oauth
+  );
+
 =head1 TESTING
 
 To test this module, you have to prepare as below.
@@ -250,6 +323,10 @@ L<http://code.google.com/intl/en/apis/spreadsheets/docs/3.0/developers_guide_pro
 L<http://code.google.com/intl/en/apis/spreadsheets/docs/3.0/reference.html>
 
 L<Net::Google::AuthSub>
+
+L<Net::Google::DataAPI>
+
+L<Net::OAuth>
 
 L<Net::Google::Spreadsheets::Spreadsheet>
 

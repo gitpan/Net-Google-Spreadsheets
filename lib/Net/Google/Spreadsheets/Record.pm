@@ -1,15 +1,15 @@
 package Net::Google::Spreadsheets::Record;
-use Moose;
-use namespace::clean -except => 'meta';
+use Any::Moose;
+use namespace::autoclean;
 use XML::Atom::Util qw(nodelist);
 
 with 
-    'Net::Google::Spreadsheets::Role::Base',
-    'Net::Google::Spreadsheets::Role::HasContent';
+    'Net::Google::DataAPI::Role::Entry',
+    'Net::Google::DataAPI::Role::HasContent';
 
 after from_atom => sub {
     my ($self) = @_;
-    for my $node (nodelist($self->elem, $self->gsns->{uri}, 'field')) {
+    for my $node (nodelist($self->elem, $self->ns('gs')->{uri}, 'field')) {
         $self->{content}->{$node->getAttribute('name')} = $node->textContent;
     }
 };
@@ -18,7 +18,7 @@ around to_atom => sub {
     my ($next, $self) = @_;
     my $entry = $next->($self);
     while (my ($key, $value) = each %{$self->{content}}) {
-        $entry->add($self->gsns, 'field', $value, {name => $key});
+        $entry->add($self->ns('gs'), 'field', $value, {name => $key});
     }
     return $entry;
 };

@@ -1,50 +1,35 @@
 package Net::Google::Spreadsheets::Spreadsheet;
-use Moose;
-use namespace::clean -except => 'meta';
+use Any::Moose;
+use namespace::autoclean;
+use Net::Google::DataAPI;
 
-with 'Net::Google::Spreadsheets::Role::Base';
+with 'Net::Google::DataAPI::Role::Entry';
 
 use Path::Class;
 use URI;
 
-has +title => (
+has title => (
     is => 'ro',
 );
 
-has key => (
+entry_has key => (
     isa => 'Str',
     is => 'ro',
-);
-
-has worksheet_feed => (
-    traits => ['Net::Google::Spreadsheets::Traits::Feed'],
-    is => 'rw',
-    isa => 'Str',
-    entry_class => 'Net::Google::Spreadsheets::Worksheet',
     from_atom => sub {
-        my ($self) = @_;
-        $self->{worksheet_feed} = $self->atom->content->elem->getAttribute('src');
+        my ($self, $atom) = @_;
+        return file(URI->new($self->id)->path)->basename;
     },
 );
 
-has table_feed => (
-    traits => ['Net::Google::Spreadsheets::Traits::Feed'],
-    is => 'rw',
-    isa => 'Str',
-    entry_class => 'Net::Google::Spreadsheets::Table',
-    required => 1,
-    lazy_build => 1,
+feedurl worksheet => (
+    entry_class => 'Net::Google::Spreadsheets::Worksheet',
+    as_content_src => 1,
 );
 
-sub _build_table_feed {
-    my $self = shift;
-    return sprintf('http://spreadsheets.google.com/feeds/%s/tables',$self->key);
-}
-
-after from_atom => sub {
-    my ($self) = @_;
-    $self->{key} = file(URI->new($self->id)->path)->basename;
-};
+feedurl table => (
+    entry_class => 'Net::Google::Spreadsheets::Table',
+    rel => 'http://schemas.google.com/spreadsheets/2006#tablesfeed',
+);
 
 __PACKAGE__->meta->make_immutable;
 

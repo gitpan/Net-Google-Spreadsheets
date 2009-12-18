@@ -5,13 +5,16 @@ all_from 'lib/Net/Google/Spreadsheets.pm';
 requires 'Carp';
 requires 'XML::Atom';
 requires 'Net::Google::AuthSub';
-requires 'Crypt::SSLeay';
-requires 'LWP::UserAgent';
+requires 'Net::Google::DataAPI' => '0.09';
 requires 'URI';
-requires 'Moose' => 0.34;
 requires 'Path::Class';
+requires 'namespace::autoclean';
+requires_any_moose(
+    moose => '0.56',
+    mouse => '0.40',
+);
 
-tests 't/*.t';
+tests_recursive;
 author_tests 'xt';
 
 build_requires 'Test::More' => '0.88';
