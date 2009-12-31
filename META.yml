@@ -30,7 +30,7 @@ requires:
   Filter::Util::Call: 0
   Mouse: 0.40
   Net::Google::AuthSub: 0
-  Net::Google::DataAPI: 0.09
+  Net::Google::DataAPI: 0.11
   Path::Class: 0
   URI: 0
   XML::Atom: 0
@@ -39,4 +39,4 @@ requires:
 resources:
   license: http://dev.perl.org/licenses/
   repository: git://github.com/lopnor/Net-Google-Spreadsheets.git
-version: 0.07
+version: 0.08
