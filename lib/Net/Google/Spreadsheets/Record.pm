@@ -10,14 +10,14 @@ with
 after from_atom => sub {
     my ($self) = @_;
     for my $node (nodelist($self->elem, $self->ns('gs')->{uri}, 'field')) {
-        $self->{content}->{$node->getAttribute('name')} = $node->textContent;
+        $self->content->{$node->getAttribute('name')} = $node->textContent;
     }
 };
 
 around to_atom => sub {
     my ($next, $self) = @_;
     my $entry = $next->($self);
-    while (my ($key, $value) = each %{$self->{content}}) {
+    while (my ($key, $value) = each %{$self->content}) {
         $entry->add($self->ns('gs'), 'field', $value, {name => $key});
     }
     return $entry;
@@ -76,12 +76,24 @@ Net::Google::Spreadsheets::Record - A representation class for Google Spreadshee
   
   my $value = $record->param('name');
   # returns 'Nobuo Danjou'
+  # you can also get it via content like this:
+  my $value_via_content = $record->content->{name};
   
   my $newval = $record->param({address => 'elsewhere'});
   # updates address (and keeps other fields) and returns new record value (with all fields)
 
   my $hashref2 = $record->param;
   # same as $record->content;
+
+  # setting whole new content
+  $record->content(
+    {
+        id => 8080,
+        address => 'nowhere',
+        zip => '999-9999',
+        name => 'nowhere man'
+    }
+  );
   
   # delete a record
   $record->delete;

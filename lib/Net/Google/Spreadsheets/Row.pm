@@ -11,14 +11,14 @@ with
 after from_atom => sub {
     my ($self) = @_;
     for my $node (nodelist($self->elem, $self->ns('gsx')->{uri}, '*')) {
-        $self->{content}->{$node->localname} = $node->textContent;
+        $self->content->{$node->localname} = $node->textContent;
     }
 };
 
 around to_atom => sub {
     my ($next, $self) = @_;
     my $entry = $next->($self);
-    while (my ($key, $value) = each %{$self->{content}}) {
+    while (my ($key, $value) = each %{$self->content}) {
         $entry->set($self->ns('gsx'), $key, $value);
     }
     return $entry;
@@ -76,6 +76,10 @@ Net::Google::Spreadsheets::Row - A representation class for Google Spreadsheet r
   
   my $value = $row->param('name');
   # returns 'Nobuo Danjou'
+
+  # it's same by getting via param method without args, or content method:
+  my $value_by_param = $row->param->{name};
+  my $value_by_content = $row->content->{name};
   
   my $newval = $row->param({address => 'elsewhere'});
   # updates address (and keeps other fields) and returns new row value (with all fields)
@@ -142,7 +146,12 @@ space characters in column name.
 
 =head2 content
 
-Rewritable attribute. You can get and set the value.
+Rewritable attribute. You can get and set the value. 
+So it's the same thing to get the value with param method or content attribute.
+
+  my $value = $row->param('foo');
+  # it's same
+  my $value2 = $row->content->{'foo'};
 
 =head1 SEE ALSO
 
