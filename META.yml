@@ -3,11 +3,16 @@ abstract: 'A Perl module for using Google Spreadsheets API.'
 author:
   - 'Nobuo Danjou <nobuo.danjou@gmail.com>'
 build_requires:
-  ExtUtils::MakeMaker: 6.42
+  ExtUtils::MakeMaker: 6.59
+  Test::Exception: 0
+  Test::MockModule: 0
+  Test::MockObject: 0
+  Test::More: 0.88
 configure_requires:
-  ExtUtils::MakeMaker: 6.42
+  ExtUtils::MakeMaker: 6.59
 distribution_type: module
-generated_by: 'Module::Install version 0.99'
+dynamic_config: 1
+generated_by: 'Module::Install version 1.06'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
@@ -23,14 +28,13 @@ recommends:
 requires:
   Any::Moose: 0.04
   Carp: 0
-  Filter::Util::Call: 0
   Mouse: 0.51
   Net::Google::AuthSub: 0
-  Net::Google::DataAPI: 0.21
+  Net::Google::DataAPI: 0.27
   URI: 0
   XML::Atom: 0
   perl: 5.8.1
 resources:
   license: http://dev.perl.org/licenses/
   repository: git://github.com/lopnor/Net-Google-Spreadsheets.git
-version: 0.14
+version: 0.15
