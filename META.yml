@@ -1,7 +1,7 @@
 ---
 abstract: 'A Perl module for using Google Spreadsheets API.'
 author:
-  - 'Nobuo Danjou <nobuo.danjou@gmail.com>'
+  - 'Nobuo Danjou <danjou@soffritto.org>'
 build_requires:
   ExtUtils::MakeMaker: 6.59
   Test::Exception: 0
@@ -37,4 +37,4 @@ requires:
 resources:
   license: http://dev.perl.org/licenses/
   repository: git://github.com/lopnor/Net-Google-Spreadsheets.git
-version: 0.15
+version: 0.1501
